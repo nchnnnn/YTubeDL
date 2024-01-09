@@ -1,7 +1,8 @@
 from pytube import YouTube
-import ffmpeg, time, os
+import ffmpeg, os, re
 
 default_path = os.getcwd().replace('\\', '/')
+
 while True:
     destination_path = input("Enter the desired folder path (or leave blank for default): ").replace("\\", "/")
     destination_path = destination_path.strip()  
@@ -9,21 +10,22 @@ while True:
     if destination_path:
         if os.path.exists(destination_path):
             folder_path = destination_path
-            print("Using specified path:", folder_path)
+            print("\n Using specified path:", folder_path)
             break
         else:
-            print("Invalid path. Please enter a valid path or leave blank for default.")
+            print("\n Invalid path. Please enter a valid path or leave blank for default.")
     else:
         folder_path = default_path + "/output"
         os.makedirs(folder_path, exist_ok=True)
-        print("Created default directory:", folder_path)
+        print("\nCreated default directory:", folder_path)
         break         
 
 batch_file = "output.bat"
 def Download(link, choose):
       
     youtubeObject = YouTube(link, on_progress_callback=on_progress)
-    title = youtubeObject.title.replace('"', ' ').replace("  ", " ")
+    title = youtubeObject.title
+    title = re.sub(r'[<>:"/\|?!*]', "", title).replace("  ", " ")
     print(f"\nTitle: {title}")
     vid = youtubeObject.streams.filter(only_video=True)
     audio = youtubeObject.streams.filter(only_audio=True).order_by('abr').desc().first()
@@ -44,12 +46,9 @@ def Download(link, choose):
                     if 0 <= strm < len(vid):
                         audio.download(filename="audio.m4a")
                         vid[strm].download(filename="video.mp4")
-                        batch_content = f'ffmpeg -i video.mp4 -i audio.m4a -c:v copy -c:a aac -strict experimental "{title}{extension}" && del video.mp4 audio.m4a'
-                        
-                        with open(batch_file, "w") as file:
-                            file.write(batch_content)
-                        # os.system(f"{default_path}/{batch_file}")
-                        os.remove(f"{default_path}/{batch_file}")
+                        ffmpeg_path = default_path + "/ffmpeg/bin/ffmpeg.exe"
+
+                        os.system(fr'{ffmpeg_path} -i video.mp4 -i audio.m4a -c:v copy -c:a aac -strict experimental "{title}{extension}" && del video.mp4 audio.m4a')
                         break
                     else:
                         print(f"\n Please enter a number between 0 and {len(vid) - 1} \n Option Above ")
@@ -65,34 +64,26 @@ def Download(link, choose):
                 .run()
 
             )
-            print(title)
             os.remove(title)
             pass
-
-
+        
     output_file = f"{title}{extension}"
     output_path = f"{folder_path}/{output_file}"
     os.rename(output_file, output_path)
     end(title, output_path)
 
 def end(title, output_path):
-    
     os.system('cls' if os.name == 'nt' else 'clear')
-    print("Output Path", output_path)
-    print(f" Finished Downloaded: {title}")
+    print("\n Output Path", output_path)
+    print(f"\n Finished Downloaded: {title}")
 
 def on_progress(stream, chunk, bytes_remaining):
     total_size_bytes = stream.filesize
     bytes_downloaded = total_size_bytes - bytes_remaining
-
     total_size_mb = int(total_size_bytes / (1024 * 1024)) 
     bytes_downloaded_mb = bytes_downloaded / (1024 * 1024)
-
-
     percent = round((bytes_downloaded / total_size_bytes) * 100, 2)
-
-    print(f"{bytes_downloaded_mb} MB of {total_size_mb} MB downloaded ({percent}%)")
-
+    print(f"\n{bytes_downloaded_mb} MB of {total_size_mb} MB downloaded ({percent}%)")
 
 
 while True:
@@ -102,7 +93,7 @@ while True:
         print("\nPlease enter a Youtube link.\n")
         continue  
 
-    if "youtube.com" not in link: 
+    if "youtu.be" not in link and "youtube.com" not in link: 
         print("\nInvalid YouTube link. Please try again.\n")
         continue
     else:
@@ -110,7 +101,7 @@ while True:
 
             choose = input("Video or Audio?: ").lower()
             if choose not in ("video", "audio"):
-                print("\tInvalid! Audio and Video only")
+                print("\n Invalid! Audio and Video only")
                 pass
             else:
                 Download(link, choose)
